@@ -2,12 +2,23 @@
 from flask import Flask,request,jsonify,session
 import mysql.connector
 from flask_cors import CORS, cross_origin
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
+load_dotenv()
+import os
+DATABASE_HOST = os.getenv("DATABASE_HOST")
+DATABASE_PORT = os.getenv("DATABASE_PORT")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
+DATABASE_USER = os.getenv("DATABASE_USER")
+DATABASE_PASSWORD = os.getenv("DATABASE_PASSWORD")
 app=Flask(__name__)
 CORS(app,supports_credentials=True)
-con = mysql.connector.connect(host="localhost",
-                               user="root", 
-                               password="12345", 
-                               database="login_page")
+con = mysql.connector.connect(host=DATABASE_HOST,
+port=DATABASE_PORT,
+database=DATABASE_NAME ,
+user=DATABASE_USER,
+password=DATABASE_PASSWORD )
 
 cursor = con.cursor()
 # cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -19,12 +30,17 @@ def index():
 @cross_origin()
 def login():
     username = request.form.get('username')
-    print(username)
     password = request.form.get('password')
-    print(password)
     cursor.execute("SELECT username,password FROM users WHERE username = %s AND password = %s", (username, password))
     result = cursor.fetchone()
     if result :
+        
+        current_time = datetime.now()
+        time_stamp = current_time.timestamp()
+        date_time = datetime.fromtimestamp(time_stamp)
+        str_date_time = date_time.strftime("%d-%m-%Y, %H:%M:%S")
+        cursor.execute("insert into timestamp(username,date_time) values(%s,%s)",(username,str_date_time))
+        con.commit()
         return {'message': 'Login successful'}
     else:
         return {'message': 'Invalid Username or Password'}
@@ -42,6 +58,7 @@ def answer():
 
     #cursor.execute("select * from code where = %s", (Question_name))
 @app.route("/signup",methods=["POST"])
+@cross_origin
 def signup():
     if request.method == 'POST':
         first_name = request.form.get("First Name")
@@ -63,7 +80,6 @@ def signup():
                 return  {'message':'Username already exists'}
 
     return {"message":"registered"}
-    
 
 if __name__ == '__main__':
     app.run(debug=True)
